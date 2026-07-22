@@ -1,0 +1,19 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# Build artifacts
+build/
+*.o
+*.a
+
+# OS
+.DS_Store
+
+# XcodeGen (regenerated from Project.yml)
+vimitall.xcodeproj
+
+# Snapshots
+.opencode-snapshots/
