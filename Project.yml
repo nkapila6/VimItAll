@@ -1,0 +1,48 @@
+name: vimitall
+
+options:
+  bundleIdPrefix: app.vimitall
+  deploymentTarget: "14.0"
+  createIntermediateGroups: true
+
+targets:
+  vimitall:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    settings:
+      base:
+        INFOPLIST_FILE: ""
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSUIElement: true
+        INFOPLIST_KEY_NSAccessibilityUsageDescription: "vimitall uses Accessibility to provide Vim mode in text fields."
+        SWIFT_VERSION: "6.0"
+    info:
+      path: Sources/Info.plist
+
+  vimitallTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: vimitall
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+
+schemes:
+  vimitall:
+    build:
+      targets:
+        vimitall: all
+        vimitallTests: [test]
+    run:
+      config: Debug
+      executable: vimitall
+    test:
+      config: Debug
+      targets:
+        - vimitallTests
