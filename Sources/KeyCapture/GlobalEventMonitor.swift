@@ -1,0 +1,73 @@
+import AppKit
+import CoreGraphics
+import os.log
+
+/// Captures global keyDown events via CGEventTap.
+final class GlobalEventMonitor {
+    private let callback: (CGEvent?) -> CGEvent?
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
+    private let log = OSLog(subsystem: "app.vimitall.vimitall", category: "EventTap")
+
+    init(callback: @escaping (CGEvent?) -> CGEvent?) {
+        self.callback = callback
+    }
+
+    /// True if the event tap was successfully created and is active.
+    private(set) var isActive = false
+
+    func start() {
+        let eventMask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: eventMask,
+            callback: { _, type, event, refcon in
+                guard let refcon else { return Unmanaged.passUnretained(event) }
+                let monitor = Unmanaged<GlobalEventMonitor>.fromOpaque(refcon).takeUnretainedValue()
+                let result = monitor.callback(event)
+                if let result {
+                    return Unmanaged.passUnretained(result)
+                }
+                return nil
+            },
+            userInfo: selfPtr
+        ) else {
+            os_log("CGEventTapCreate FAILED - accessibility permission not granted", log: log, type: .error)
+            isActive = false
+            return
+        }
+
+        eventTap = tap
+        isActive = true
+        os_log("CGEventTap created successfully", log: log, type: .info)
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+    }
+
+    func stop() {
+        guard let tap = eventTap else { return }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+        }
+        eventTap = nil
+        runLoopSource = nil
+    }
+
+    /// Synthesize a key event. Stub for future use (e.g., undo via Cmd+Z).
+    func synthesizeKey(keyCode: CGKeyCode, flags: CGEventFlags) {
+        guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) else { return }
+        event.flags = flags
+        event.post(tap: .cghidEventTap)
+        // Key up
+        guard let upEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false) else { return }
+        upEvent.flags = flags
+        upEvent.post(tap: .cghidEventTap)
+    }
+}
