@@ -113,9 +113,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Only intercept keyDown events.
         guard event.type == .keyDown else { return event }
 
+        let flags = event.flags
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+
+        // Intercept Ctrl+[ as mode-entry key BEFORE modifier passthrough.
+        // Ctrl+[ is keyCode 33 (left bracket) with control flag.
+        if keyCode == 33 && flags.contains(.maskControl)
+            && !flags.contains(.maskCommand) && !flags.contains(.maskAlternate) {
+            let modeEntryKey = UserDefaults.standard.string(forKey: "modeEntryKey") ?? "esc"
+            if modeEntryKey == "ctrlBracket" && vimState.mode == .insert {
+                let consumed = insertHandler?.handle("ctrlBracket") ?? false
+                return consumed ? nil : event
+            }
+        }
+
         // Always pass through OS-level shortcuts (Cmd, Ctrl, Option combos).
         // Vim motions are bare keys; only those should be intercepted.
-        let flags = event.flags
         if flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate) {
             return event
         }

@@ -31,6 +31,9 @@ final class VimState: ObservableObject {
     /// Set briefly after a yank so the menu bar icon can flash blue.
     @Published var didYank: Bool = false
 
+    /// Last Vim key pressed (motion, operator, or command). Used by the characters window.
+    @Published var lastMove: String? = nil
+
     /// Pending find state: set when f/F/t/T is pressed, consumed when next key arrives.
     var pendingFind: (forward: Bool, till: Bool)? = nil
 

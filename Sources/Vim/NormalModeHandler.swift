@@ -86,6 +86,7 @@ final class NormalModeHandler {
     }
 
     private func performFind(char: Character, forward: Bool, till: Bool) {
+        vimState.lastMove = forward ? (till ? "t\(char)" : "f\(char)") : (till ? "T\(char)" : "F\(char)")
         refreshElement()
         guard let text = axMutator.currentText() else { return }
         guard let caret = axMutator.currentCaretOffset() else { return }
@@ -162,6 +163,7 @@ final class NormalModeHandler {
         if isRepeatOfPendingOperator(motionKey, pending: op) {
             vimState.pendingOperator = nil
             pendingOperatorMotionSequence.reset()
+            vimState.lastMove = "\(motionKey)\(motionKey)"
             refreshElement()
             let result = op.perform(with: axMutator, count: 1)
             if result == .enterInsert {
@@ -205,6 +207,7 @@ final class NormalModeHandler {
     }
 
     private func performOperatorOnMotion(_ op: Operator, motion: Motion) {
+        vimState.lastMove = "\(op.rawValue)\(motion.rawValue)"
         refreshElement()
         guard let text = axMutator.currentText() else { return }
         guard let caret = axMutator.currentCaretOffset() else { return }
@@ -268,6 +271,7 @@ final class NormalModeHandler {
 
         switch mapping.action {
         case .motion(let motion):
+            vimState.lastMove = motion.rawValue
             if let element = axObserver?.currentFocusedElement() {
                 axMutator.setElement(element)
                 os_log("got focused element for motion %{public}@", log: log, type: .info, motion.rawValue)
@@ -289,6 +293,7 @@ final class NormalModeHandler {
             vimState.reset()
 
         case .operator(let op):
+            vimState.lastMove = op.rawValue
             if let element = axObserver?.currentFocusedElement() {
                 axMutator.setElement(element)
             }
@@ -306,6 +311,7 @@ final class NormalModeHandler {
             vimState.lastChange = LastChange(op: op, motion: nil, count: count)
 
         case .enterInsert(let trigger):
+            vimState.lastMove = trigger.rawValue
             if let element = axObserver?.currentFocusedElement() {
                 axMutator.setElement(element)
             }
@@ -313,6 +319,7 @@ final class NormalModeHandler {
             vimState.enterInsertMode()
 
         case .enterVisual(let lineWise):
+            vimState.lastMove = lineWise ? "V" : "v"
             if let element = axObserver?.currentFocusedElement() {
                 axMutator.setElement(element)
             }
@@ -330,17 +337,21 @@ final class NormalModeHandler {
             }
 
         case .pendingReplace:
+            vimState.lastMove = "r"
             pendingReplace = true
 
         case .pendingFind(let forward, let till):
+            vimState.lastMove = forward ? (till ? "t" : "f") : (till ? "T" : "F")
             vimState.pendingFind = (forward, till)
 
         case .repeatFind(let reverse):
+            vimState.lastMove = reverse ? "," : ";"
             guard let lastFind = vimState.lastFind else { return }
             let forward = reverse ? !lastFind.forward : lastFind.forward
             performFind(char: lastFind.char, forward: forward, till: lastFind.till)
 
         case .repeatLastChange:
+            vimState.lastMove = "."
             guard let lastChange = vimState.lastChange else { return }
             replayLastChange(lastChange)
 

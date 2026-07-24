@@ -4,10 +4,12 @@ import UniformTypeIdentifiers
 /// User preferences backed by UserDefaults.
 @MainActor
 final class PreferencesStore: ObservableObject {
-    @AppStorage("leaderKey") var leaderKey: String = "esc"
-    @AppStorage("enabled") var enabled: Bool = true
+    @AppStorage("vimitallEnabled") var enabled: Bool = true
     @AppStorage("showModeIndicator") var showModeIndicator: Bool = true
     @AppStorage("keyboardFallbackEnabled") var keyboardFallbackEnabled: Bool = true
+    @AppStorage("modeEntryKey") var modeEntryKey: String = "esc"
+    @AppStorage("customEntrySequence") var customEntrySequence: String = "jk"
+    @AppStorage("showFocusHighlight") var showFocusHighlight: Bool = false
 }
 
 /// Small helper to refresh frontmost app info on the main actor.
@@ -17,32 +19,160 @@ private func currentFrontmostInfo() -> (name: String?, bundleId: String?) {
     return (app?.localizedName, app?.bundleIdentifier)
 }
 
-/// SwiftUI preferences window content.
+/// SwiftUI preferences window content with custom tab bar.
 struct PreferencesView: View {
     @StateObject private var store = PreferencesStore()
     @StateObject private var blacklist = AppBlacklist()
+    @State private var selectedTab = 0
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Sidebar with icon + label buttons.
+            VStack(alignment: .leading, spacing: 0) {
+                tabButton(title: "General", icon: "gearshape.fill", index: 0)
+                tabButton(title: "Display", icon: "eye.fill", index: 1)
+                tabButton(title: "Strategy", icon: "rectangle.righthalf.inset.filled", index: 2)
+                tabButton(title: "Exceptions", icon: "shield.fill", index: 3)
+                Spacer()
+            }
+            .frame(width: 160)
+            .background(Color(nsColor: .controlBackgroundColor))
+
+            Divider()
+
+            // Content area.
+            VStack {
+                switch selectedTab {
+                case 0: GeneralTab(store: store)
+                case 1: DisplayTab(store: store)
+                case 2: StrategyTab(store: store)
+                case 3: AppExceptionsTab(blacklist: blacklist)
+                default: EmptyView()
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(width: 520, height: 420)
+    }
+
+    private func tabButton(title: String, icon: String, index: Int) -> some View {
+        Button(action: { selectedTab = index }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .frame(width: 20)
+                    .foregroundColor(selectedTab == index ? .accentColor : .secondary)
+                Text(title)
+                    .foregroundColor(selectedTab == index ? .primary : .secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(selectedTab == index ? Color.accentColor.opacity(0.15) : Color.clear)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - General Tab
+
+struct GeneralTab: View {
+    @ObservedObject var store: PreferencesStore
+
+    var body: some View {
+        Form {
+            Section("Startup") {
+                Toggle("Enable vimitall", isOn: $store.enabled)
+                Toggle("Start at login", isOn: Binding(
+                    get: { LoginService.isEnabled },
+                    set: { newValue in
+                        do {
+                            if newValue { try LoginService.enable() }
+                            else { try LoginService.disable() }
+                        } catch {
+                            print("Failed to toggle login service: \(error)")
+                        }
+                    }
+                ))
+            }
+
+            Section("Mode Entry") {
+                Picker("Enter Normal mode with", selection: $store.modeEntryKey) {
+                    Text("esc").tag("esc")
+                    Text("jk").tag("jk")
+                    Text("Ctrl+[").tag("ctrlBracket")
+                    Text("Custom sequence").tag("custom")
+                }
+                .pickerStyle(.radioGroup)
+
+                if store.modeEntryKey == "custom" {
+                    TextField("Two-letter sequence (e.g. jk)", text: $store.customEntrySequence)
+                        .frame(width: 200)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+// MARK: - Display Tab
+
+struct DisplayTab: View {
+    @ObservedObject var store: PreferencesStore
+
+    var body: some View {
+        Form {
+            Section("Menu Bar") {
+                Toggle("Show mode indicator", isOn: $store.showModeIndicator)
+                Text("Colored dot in the menu bar showing N (normal), I (insert), or V (visual).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section("Focus Highlight") {
+                Toggle("Highlight focused window", isOn: $store.showFocusHighlight)
+                Text("Draws a colored border around the active window in Normal or Visual mode.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+// MARK: - Strategy Tab
+
+struct StrategyTab: View {
+    @ObservedObject var store: PreferencesStore
+
+    var body: some View {
+        Form {
+            Section("Keyboard Fallback") {
+                Toggle("Use keyboard fallback for unsupported apps", isOn: $store.keyboardFallbackEnabled)
+                Text("When enabled, vimitall uses simulated arrow keys in apps where text access is unavailable (Firefox, Chrome, Electron, etc.).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+// MARK: - App Exceptions Tab
+
+struct AppExceptionsTab: View {
+    @ObservedObject var blacklist: AppBlacklist
     @State private var manualBundleId: String = ""
     @State private var currentInfo: (name: String?, bundleId: String?) = currentFrontmostInfo()
 
     var body: some View {
         Form {
-            Section {
-                Picker("Leader Key", selection: $store.leaderKey) {
-                    Text("esc").tag("esc")
-                }
-                .pickerStyle(.radioGroup)
-
-                Toggle("Enable vimitall", isOn: $store.enabled)
-
-                Toggle("Show mode indicator in menu bar", isOn: $store.showModeIndicator)
-
-                Toggle("Use keyboard fallback for unsupported apps", isOn: $store.keyboardFallbackEnabled)
-            }
-
-            Section("App Exceptions") {
+            Section("Add Exception") {
                 if let bundleId = currentInfo.bundleId {
                     HStack {
-                        Text("Current app: \(currentInfo.name ?? bundleId) (\(bundleId))")
+                        Text("Current app: \(currentInfo.name ?? bundleId)")
                             .font(.caption)
                             .lineLimit(1)
                         Spacer()
@@ -50,10 +180,6 @@ struct PreferencesView: View {
                             blacklist.add(bundleId)
                         }
                     }
-                } else {
-                    Text("Current app bundle ID unavailable")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
 
                 HStack {
@@ -68,7 +194,9 @@ struct PreferencesView: View {
                         showAppPicker()
                     }
                 }
+            }
 
+            Section("Excluded Apps") {
                 List {
                     ForEach(Array(blacklist.blacklistedBundleIds).sorted(), id: \.self) { bundleId in
                         HStack {
@@ -83,8 +211,8 @@ struct PreferencesView: View {
                 .frame(height: 120)
             }
         }
+        .formStyle(.grouped)
         .padding()
-        .frame(width: 420, height: 460)
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didActivateApplicationNotification)) { _ in
             currentInfo = currentFrontmostInfo()
         }

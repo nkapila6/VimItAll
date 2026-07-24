@@ -98,16 +98,37 @@ The app auto-switches based on whether the focused element exposes editable text
 
 Apps that have their own Vim mode (VS Code, IntelliJ, Neovim, terminals) are blacklisted by default. Add or remove apps via Preferences (menu bar icon > Preferences > App Exceptions). Browse the /Applications folder to add apps by name.
 
+## Preferences
+
+Open Preferences from the menu bar icon. Settings are organized into four sections:
+
+### General
+- Enable/disable vimitall
+- Start at login (via SMAppService)
+- Mode entry key: `esc`, `jk`, `Ctrl+[`, or a custom two-letter sequence
+
+### Display
+- Menu bar indicator: colored dot showing N (normal), I (insert), V (visual), D (disabled). Falls back to a neutral icon when disabled.
+- Focus highlight: draws a colored border around the active window in Normal or Visual mode
+
+### Strategy
+- Keyboard fallback for unsupported apps: uses simulated arrow keys when Accessibility text access is unavailable
+
+### App Exceptions
+- Blacklist apps that have their own Vim mode (VS Code, IntelliJ, Neovim, terminals are excluded by default)
+- Add apps by browsing /Applications or by bundle ID
+- Remove apps from the list
+
 ## Architecture
 
 ```
 Sources/
-  App/            Entry point, event dispatch, app blacklist
+  App/            Entry point, event dispatch, app blacklist, login service
   Accessibility/  AXUIElement wrappers for text read/write
   KeyCapture/     CGEventTap, key sequence parser, keyboard synthesizer
   Vim/            State machine, motions, operators, mode handlers
-  UI/             Menu bar status icon
-  Preferences/    SwiftUI preferences window
+  UI/             Menu bar status icon, focus highlight
+  Preferences/    SwiftUI preferences window with sidebar
 Tests/            Motion and state machine tests
 ```
 
@@ -118,6 +139,8 @@ Tests/            Motion and state machine tests
 - Counts on operator+motion (`d2w`) not supported yet
 - Word motions in keyboard fallback use macOS option+arrow (slightly different from Vim)
 - No visual block mode (Ctrl-V)
+- Custom mode-entry sequences should be 2 characters for best UX
+- Start at login requires the app in /Applications with proper signing
 
 ## License
 

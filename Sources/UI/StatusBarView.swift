@@ -8,8 +8,10 @@ final class StatusBarController: NSObject {
     private var statusItem: NSStatusItem?
     private var vimState: VimState
     private var cancellable: AnyCancellable?
+    private var yankCancellable: AnyCancellable?
     private var prefsWindowController: NSWindowController?
     private var enableMenuItem: NSMenuItem?
+    private let focusHighlight = FocusHighlight()
 
     init(vimState: VimState) {
         self.vimState = vimState
@@ -62,8 +64,6 @@ final class StatusBarController: NSObject {
         )
     }
 
-    private var yankCancellable: AnyCancellable?
-
     @objc private func enabledStateChanged() {
         updateLabel(for: vimState.mode)
     }
@@ -73,32 +73,7 @@ final class StatusBarController: NSObject {
     }
 
     private func yankIcon() -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size)
-        image.lockFocus()
-
-        let rect = NSRect(x: 1, y: 1, width: 16, height: 16)
-        let path = NSBezierPath(ovalIn: rect)
-        NSColor(srgbRed: 0.25, green: 0.50, blue: 0.95, alpha: 1.0).setFill()
-        path.fill()
-
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .bold),
-            .foregroundColor: NSColor.white,
-        ]
-        let letter = "Y" as NSString
-        let textSize = letter.size(withAttributes: attrs)
-        let textRect = NSRect(
-            x: (size.width - textSize.width) / 2,
-            y: (size.height - textSize.height) / 2 - 1,
-            width: textSize.width,
-            height: textSize.height
-        )
-        letter.draw(in: textRect, withAttributes: attrs)
-
-        image.unlockFocus()
-        image.isTemplate = false
-        return image
+        return circleIcon(color: NSColor(srgbRed: 0.25, green: 0.50, blue: 0.95, alpha: 1.0), letter: "Y")
     }
 
     private func modeLetter(for mode: VimMode) -> String {
@@ -155,7 +130,15 @@ final class StatusBarController: NSObject {
     }
 
     private func updateLabel(for mode: VimMode) {
-        if isEnabled {
+        let showIndicator = UserDefaults.standard.object(forKey: "showModeIndicator") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "showModeIndicator")
+
+        if !showIndicator {
+            // Show a neutral app icon so the menu is still accessible.
+            statusItem?.button?.image = neutralIcon()
+            statusItem?.button?.attributedTitle = NSAttributedString(string: "")
+        } else if isEnabled {
             statusItem?.button?.image = modeIcon(for: mode)
             statusItem?.button?.attributedTitle = NSAttributedString(
                 string: " \(modeLetter(for: mode)) ",
@@ -170,31 +153,51 @@ final class StatusBarController: NSObject {
             )
         }
         updateCursor(for: mode)
+        updateFocusHighlight(for: mode)
+    }
+
+    private func updateFocusHighlight(for mode: VimMode) {
+        let showHighlight = UserDefaults.standard.object(forKey: "showFocusHighlight") == nil
+            ? false
+            : UserDefaults.standard.bool(forKey: "showFocusHighlight")
+        if isEnabled && showHighlight && (mode == .normal || mode == .visual) {
+            focusHighlight.show()
+        } else {
+            focusHighlight.hide()
+        }
     }
 
     private func disabledIcon() -> NSImage {
+        return circleIcon(color: NSColor.systemRed, letter: "D")
+    }
+
+    private func neutralIcon() -> NSImage {
+        return circleIcon(color: NSColor.darkGray, letter: "v")
+    }
+
+    private func circleIcon(color: NSColor, letter: String) -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size)
         image.lockFocus()
 
         let rect = NSRect(x: 1, y: 1, width: 16, height: 16)
         let path = NSBezierPath(ovalIn: rect)
-        NSColor.systemRed.setFill()
+        color.setFill()
         path.fill()
 
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 11, weight: .bold),
             .foregroundColor: NSColor.white,
         ]
-        let letter = "D" as NSString
-        let textSize = letter.size(withAttributes: attrs)
+        let str = letter as NSString
+        let textSize = str.size(withAttributes: attrs)
         let textRect = NSRect(
             x: (size.width - textSize.width) / 2,
             y: (size.height - textSize.height) / 2 - 1,
             width: textSize.width,
             height: textSize.height
         )
-        letter.draw(in: textRect, withAttributes: attrs)
+        str.draw(in: textRect, withAttributes: attrs)
 
         image.unlockFocus()
         image.isTemplate = false
