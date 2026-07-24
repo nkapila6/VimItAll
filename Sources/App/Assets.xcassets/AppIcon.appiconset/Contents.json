@@ -1,0 +1,10 @@
+{
+  "images" : [
+    {
+      "filename" : "AppIcon.icns",
+      "idiom" : "mac",
+      "role" : "app"
+    }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

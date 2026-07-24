@@ -13,13 +13,15 @@ targets:
       - Sources
     settings:
       base:
-        INFOPLIST_FILE: ""
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_LSUIElement: true
-        INFOPLIST_KEY_NSAccessibilityUsageDescription: "vimitall uses Accessibility to provide Vim mode in text fields."
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "6.0"
     info:
       path: Sources/Info.plist
+      properties:
+        CFBundleIconFile: AppIcon
+        LSUIElement: true
+        NSAccessibilityUsageDescription: "vimitall uses Accessibility to provide Vim mode in text fields."
 
   vimitallTests:
     type: bundle.unit-test
