@@ -1,4 +1,9 @@
-# vimitall
+# VimItAll
+
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black)
+![Swift](https://img.shields.io/badge/Swift-6.0-orange)
+![Release](https://img.shields.io/github/v/release/nkapila6/vimitall)
 
 Vim mode for every macOS text field. Open-source, system-wide.
 
@@ -21,6 +26,26 @@ Or use the build script (builds, resets Accessibility permission, launches):
 ```sh
 ./build.sh
 ```
+
+## Install from release
+
+1. Download the latest DMG from [releases](https://github.com/nkapila6/vimitall/releases)
+2. macOS will block it with "Apple could not verify..." - strip the quarantine flag:
+
+```sh
+xattr -cr ~/Downloads/vimitall-*.dmg
+open ~/Downloads/vimitall-*.dmg
+```
+
+3. Drag VimItAll to /Applications
+4. Strip the quarantine flag from the app too:
+
+```sh
+xattr -cr /Applications/vimitall.app
+open /Applications/vimitall.app
+```
+
+5. Grant Accessibility permission in System Settings > Privacy & Security > Accessibility
 
 ## Keybindings
 
