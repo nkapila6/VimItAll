@@ -64,29 +64,38 @@ extension Operator {
         case .yankLine:
             let startLine = currentLine
             let endLine = min(lines.count - 1, currentLine + count - 1)
-            let startOffset = offset(forLine: startLine, column: 0, in: lines)
-            let endOffset: Int
-            if endLine + 1 < lines.count {
-                endOffset = offset(forLine: endLine + 1, column: 0, in: lines)
-            } else {
-                endOffset = text.count
+            // Yank line text without trailing newlines.
+            var yankedLines: [String] = []
+            for lineNum in startLine...endLine {
+                yankedLines.append(lines[lineNum])
             }
-            let yanked = text[text.index(text.startIndex, offsetBy: startOffset)..<text.index(text.startIndex, offsetBy: endOffset)]
-            YankBuffer.content = String(yanked)
+            YankBuffer.content = yankedLines.joined(separator: "\n")
+            YankBuffer.isLineWise = true
             return .stayNormal
 
         case .pasteAfter:
             guard !YankBuffer.content.isEmpty else { return .stayNormal }
-            let lineEndOffset = offset(forLine: currentLine, column: lines[currentLine].count, in: lines)
-            mutator.moveCaret(to: lineEndOffset)
-            mutator.insertText("\n" + YankBuffer.content)
+            if YankBuffer.isLineWise {
+                let lineEndOffset = offset(forLine: currentLine, column: lines[currentLine].count, in: lines)
+                mutator.moveCaret(to: lineEndOffset)
+                mutator.insertText("\n" + YankBuffer.content)
+            } else {
+                // Char-wise: insert after the cursor.
+                mutator.moveCaret(to: min(text.count, caret + 1))
+                mutator.insertText(YankBuffer.content)
+            }
             return .stayNormal
 
         case .pasteBefore:
             guard !YankBuffer.content.isEmpty else { return .stayNormal }
-            let lineStartOffset = offset(forLine: currentLine, column: 0, in: lines)
-            mutator.moveCaret(to: lineStartOffset)
-            mutator.insertText(YankBuffer.content + "\n")
+            if YankBuffer.isLineWise {
+                let lineStartOffset = offset(forLine: currentLine, column: 0, in: lines)
+                mutator.moveCaret(to: lineStartOffset)
+                mutator.insertText(YankBuffer.content + "\n")
+            } else {
+                // Char-wise: insert at the cursor.
+                mutator.insertText(YankBuffer.content)
+            }
             return .stayNormal
 
         case .deleteCharBefore:

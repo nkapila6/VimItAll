@@ -155,10 +155,13 @@ final class NormalModeHandler {
         }
     }
 
+    private var pendingOperatorMotionSequence = KeySequence()
+
     private func handlePendingOperator(_ op: Operator, motionKey: String) -> Bool {
         // Same operator key again -> line-wise (dd, cc, yy).
         if isRepeatOfPendingOperator(motionKey, pending: op) {
             vimState.pendingOperator = nil
+            pendingOperatorMotionSequence.reset()
             refreshElement()
             let result = op.perform(with: axMutator, count: 1)
             if result == .enterInsert {
@@ -172,19 +175,33 @@ final class NormalModeHandler {
 
         // esc cancels.
         if motionKey == "esc" {
+            vimState.pendingOperator = nil
+            pendingOperatorMotionSequence.reset()
             vimState.reset()
             return false
         }
 
-        // Resolve the key as a motion.
-        guard let motion = Motion(rawValue: motionKey) else {
+        // Feed into the sequence to handle multi-key motions like gg.
+        let result = pendingOperatorMotionSequence.feed(motionKey)
+        switch result {
+        case .incomplete:
+            return true
+        case .complete(let mapping):
+            pendingOperatorMotionSequence.reset()
+            vimState.pendingOperator = nil
+            switch mapping.action {
+            case .motion(let motion):
+                performOperatorOnMotion(op, motion: motion)
+            default:
+                break
+            }
+            return true
+        case .cancel:
+            pendingOperatorMotionSequence.reset()
+            vimState.pendingOperator = nil
             vimState.reset()
-            return true // swallow unknown key
+            return true
         }
-
-        vimState.pendingOperator = nil
-        performOperatorOnMotion(op, motion: motion)
-        return true
     }
 
     private func performOperatorOnMotion(_ op: Operator, motion: Motion) {
