@@ -39,21 +39,25 @@ final class VisualModeHandler {
     func handle(_ key: String) -> Bool {
         if key == "esc" {
             exitVisualMode()
+            keySequence.reset()
             return true
         }
 
         if key == "d" || key == "x" {
             deleteSelection()
+            keySequence.reset()
             return true
         }
 
         if key == "y" {
             yankSelection()
+            keySequence.reset()
             return true
         }
 
         if key == "c" {
             changeSelection()
+            keySequence.reset()
             return true
         }
 
@@ -87,18 +91,20 @@ final class VisualModeHandler {
     private func extendSelection(with motion: Motion, count: Int) {
         refreshElement()
         guard let text = axMutator.currentText() else { return }
-        guard let selRange = axMutator.currentSelectionRange() else { return }
 
         let anchor = vimState.visualAnchor
 
-        // The active cursor end is where motions should compute from.
-        // If the anchor is at the start, the cursor is at the end (forward selection).
-        // If the anchor is at the end, the cursor is at the start (backward selection).
+        // Read the current selection. If we can't, fall back to the anchor as cursor.
+        let selRange = axMutator.currentSelectionRange()
         let cursorEnd: Int
-        if selRange.start == anchor {
-            cursorEnd = selRange.start + selRange.length
+        if let selRange {
+            if selRange.start == anchor {
+                cursorEnd = selRange.start + selRange.length
+            } else {
+                cursorEnd = selRange.start
+            }
         } else {
-            cursorEnd = selRange.start
+            cursorEnd = anchor
         }
 
         let target = motion.targetOffset(from: cursorEnd, in: text, count: count)

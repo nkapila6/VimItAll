@@ -1,8 +1,8 @@
 # vimitall
 
-Vim mode for macOS text fields. An open-source clone of kindaVim.
+Vim mode for every macOS text field. Open-source, system-wide.
 
-**Status: early WIP.** Basic motions and operators work via Accessibility API. Not yet ready for daily use.
+Uses the macOS Accessibility API to read and manipulate text directly in native apps, and falls back to synthesizing keyboard events for apps that don't expose Accessibility (Firefox, Chrome, Electron, etc.).
 
 ## Requirements
 
@@ -16,34 +16,109 @@ xcodegen generate
 xcodebuild -project vimitall.xcodeproj -scheme vimitall -configuration Debug build
 ```
 
-## MVP Move Set
+Or use the build script (builds, resets Accessibility permission, launches):
+
+```sh
+./build.sh
+```
+
+## Keybindings
 
 ### Motions
-h, j, k, l, w, b, e, 0, $, gg, G
+
+| Key | Action |
+|---|---|
+| `h` `j` `k` `l` | Move left/down/up/right |
+| `w` `b` `e` | Next/prev word, end of word |
+| `W` `B` `E` | Next/prev WORD, end of WORD (whitespace-separated) |
+| `0` `$` | Start/end of line |
+| `gg` `G` | Start/end of document |
+| `f{char}` `F{char}` | Find char forward/backward on line |
+| `t{char}` `T{char}` | Move to just before/after char on line |
+| `;` `,` | Repeat last find, repeat reversed |
 
 ### Operators
-x (delete char), dd (delete line), yy (yank line), p (paste after), u (undo via Cmd+Z)
 
-### Insert triggers
-i, a, o, O, esc (or jk)
+| Key | Action |
+|---|---|
+| `x` `X` | Delete char under/before cursor |
+| `dd` | Delete line |
+| `yy` | Yank line |
+| `p` `P` | Paste after/before |
+| `D` | Delete to end of line |
+| `C` | Change to end of line |
+| `cc` `S` | Change whole line |
+| `J` | Join lines |
+| `u` | Undo (Cmd+Z) |
+| `r{char}` | Replace char under cursor |
+| `.` | Repeat last change |
+
+### Operator + motion
+
+| Key | Action |
+|---|---|
+| `dw` `dW` `db` `de` | Delete word/WORD/back/end |
+| `d$` `dG` `dgg` | Delete to end of line/document/start |
+| `cw` `c$` | Change word/to end of line |
+| `yw` `y$` | Yank word/to end of line |
+
+### Mode switching
+
+| Key | Action |
+|---|---|
+| `esc` | Insert to Normal |
+| `i` `a` `A` `I` | Insert at cursor/after/end of line/start of line |
+| `o` `O` | Open line below/above |
+| `s` | Delete char, insert |
+| `v` `V` | Visual mode (char-wise / line-wise) |
+
+### Visual mode
+
+| Key | Action |
+|---|---|
+| `h j k l w b e` | Extend selection |
+| `0` `$` `gg` `G` | Extend to line start/end, document start/end |
+| `d` `x` | Delete selection |
+| `y` | Yank selection |
+| `c` | Change selection |
+| `esc` | Exit visual |
 
 ### Counts
-Numeric prefixes work with motions and operators (e.g., 3w, 2dd).
+
+Numeric prefixes work with motions and operators: `5j`, `3w`, `2dd`, `3x`.
+
+## Two strategies
+
+- **AX strategy** (TextEdit, Notes, Safari, native apps): reads text and caret via Accessibility API. Accurate.
+- **Keyboard fallback** (Firefox, Chrome, Electron, terminals): synthesizes arrow keys and shortcuts. Works everywhere, approximate.
+
+The app auto-switches based on whether the focused element exposes editable text via Accessibility.
+
+## App exceptions
+
+Apps that have their own Vim mode (VS Code, IntelliJ, Neovim, terminals) are blacklisted by default. Add or remove apps via Preferences (menu bar icon > Preferences > App Exceptions). Browse the /Applications folder to add apps by name.
 
 ## Architecture
 
-- `Sources/Accessibility/` - AXUIElement wrappers for reading/writing text fields
-- `Sources/KeyCapture/` - CGEventTap for global key capture and key sequence parsing
-- `Sources/Vim/` - Vim state machine, motions, operators, key mappings
-- `Sources/UI/` - Menu bar status item
-- `Sources/Preferences/` - SwiftUI preferences window
+```
+Sources/
+  App/            Entry point, event dispatch, app blacklist
+  Accessibility/  AXUIElement wrappers for text read/write
+  KeyCapture/     CGEventTap, key sequence parser, keyboard synthesizer
+  Vim/            State machine, motions, operators, mode handlers
+  UI/             Menu bar status icon
+  Preferences/    SwiftUI preferences window
+Tests/            Motion and state machine tests
+```
 
-## Roadmap
+## Limitations
 
-- Visual mode
-- Text objects (iw, aw, etc.)
-- f/t/F/T character search
-- % for bracket matching
-- Macros (q/@)
-- . (repeat)
-- Custom key mappings
+- `f/F/t/T` only work in AX mode (need text access)
+- `.` repeat is approximate
+- Counts on operator+motion (`d2w`) not supported yet
+- Word motions in keyboard fallback use macOS option+arrow (slightly different from Vim)
+- No visual block mode (Ctrl-V)
+
+## License
+
+MIT
