@@ -58,6 +58,13 @@ extension Operator {
             } else {
                 endOffset = text.count
             }
+            // Yank the deleted lines to the buffer before deleting.
+            var yankedLines: [String] = []
+            for lineNum in startLine...endLine {
+                yankedLines.append(lines[lineNum])
+            }
+            YankBuffer.content = yankedLines.joined(separator: "\n")
+            YankBuffer.isLineWise = true
             mutator.deleteRange(start: startOffset, length: endOffset - startOffset)
             return .stayNormal
 
@@ -77,12 +84,12 @@ extension Operator {
             guard !YankBuffer.content.isEmpty else { return .stayNormal }
             if YankBuffer.isLineWise {
                 let lineEndOffset = offset(forLine: currentLine, column: lines[currentLine].count, in: lines)
-                mutator.moveCaret(to: lineEndOffset)
-                mutator.insertText("\n" + YankBuffer.content)
+                // Use replaceRange with length 0 to insert without relying on
+                // a separate moveCaret call that might race with the insert.
+                mutator.replaceRange(start: lineEndOffset, length: 0, with: "\n" + YankBuffer.content)
             } else {
                 // Char-wise: insert after the cursor.
-                mutator.moveCaret(to: min(text.count, caret + 1))
-                mutator.insertText(YankBuffer.content)
+                mutator.replaceRange(start: min(text.count, caret + 1), length: 0, with: YankBuffer.content)
             }
             return .stayNormal
 
@@ -90,11 +97,10 @@ extension Operator {
             guard !YankBuffer.content.isEmpty else { return .stayNormal }
             if YankBuffer.isLineWise {
                 let lineStartOffset = offset(forLine: currentLine, column: 0, in: lines)
-                mutator.moveCaret(to: lineStartOffset)
-                mutator.insertText(YankBuffer.content + "\n")
+                mutator.replaceRange(start: lineStartOffset, length: 0, with: YankBuffer.content + "\n")
             } else {
                 // Char-wise: insert at the cursor.
-                mutator.insertText(YankBuffer.content)
+                mutator.replaceRange(start: caret, length: 0, with: YankBuffer.content)
             }
             return .stayNormal
 

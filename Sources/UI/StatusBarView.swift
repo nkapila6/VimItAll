@@ -46,6 +46,13 @@ final class StatusBarController: NSObject {
             self?.updateLabel(for: newMode)
         }
 
+        // Flash the icon blue briefly when a yank happens.
+        yankCancellable = vimState.$didYank.sink { [weak self] didYank in
+            if didYank {
+                self?.showYankFlash()
+            }
+        }
+
         // Observe the enabled toggle so the icon updates to disabled state.
         NotificationCenter.default.addObserver(
             self,
@@ -55,8 +62,43 @@ final class StatusBarController: NSObject {
         )
     }
 
+    private var yankCancellable: AnyCancellable?
+
     @objc private func enabledStateChanged() {
         updateLabel(for: vimState.mode)
+    }
+
+    private func showYankFlash() {
+        statusItem?.button?.image = yankIcon()
+    }
+
+    private func yankIcon() -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size)
+        image.lockFocus()
+
+        let rect = NSRect(x: 1, y: 1, width: 16, height: 16)
+        let path = NSBezierPath(ovalIn: rect)
+        NSColor(srgbRed: 0.25, green: 0.50, blue: 0.95, alpha: 1.0).setFill()
+        path.fill()
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+            .foregroundColor: NSColor.white,
+        ]
+        let letter = "Y" as NSString
+        let textSize = letter.size(withAttributes: attrs)
+        let textRect = NSRect(
+            x: (size.width - textSize.width) / 2,
+            y: (size.height - textSize.height) / 2 - 1,
+            width: textSize.width,
+            height: textSize.height
+        )
+        letter.draw(in: textRect, withAttributes: attrs)
+
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 
     private func modeLetter(for mode: VimMode) -> String {

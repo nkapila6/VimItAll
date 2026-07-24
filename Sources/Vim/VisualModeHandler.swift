@@ -141,6 +141,10 @@ final class VisualModeHandler {
             YankBuffer.content = selected
         }
         let anchor = vimState.visualAnchor
+        vimState.didYank = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.vimState.didYank = false
+        }
         vimState.enterNormalMode()
         axMutator.moveCaret(to: anchor)
     }

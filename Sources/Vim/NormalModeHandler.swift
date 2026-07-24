@@ -241,6 +241,7 @@ final class NormalModeHandler {
             let endIdx = text.index(text.startIndex, offsetBy: start + length)
             YankBuffer.content = String(text[startIdx..<endIdx])
             YankBuffer.isLineWise = false
+            flashYank()
             vimState.reset()
             vimState.lastChange = LastChange(op: op, motion: motion, count: 1)
 
@@ -296,6 +297,10 @@ final class NormalModeHandler {
                 vimState.enterInsertMode()
             } else {
                 vimState.reset()
+            }
+            // Flash the yank indicator when yanking.
+            if op == .yankLine {
+                flashYank()
             }
             // Store for . repeat (line-wise operators like dd, cc, yy).
             vimState.lastChange = LastChange(op: op, motion: nil, count: count)
@@ -361,6 +366,13 @@ final class NormalModeHandler {
     }
 
     // MARK: - Helpers
+
+    private func flashYank() {
+        vimState.didYank = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.vimState.didYank = false
+        }
+    }
 
     private func refreshElement() {
         if let element = axObserver?.currentFocusedElement() {

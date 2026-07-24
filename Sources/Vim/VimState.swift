@@ -28,6 +28,9 @@ final class VimState: ObservableObject {
     @Published var visualAnchor: Int = 0
     @Published var visualLineWise: Bool = false
 
+    /// Set briefly after a yank so the menu bar icon can flash blue.
+    @Published var didYank: Bool = false
+
     /// Pending find state: set when f/F/t/T is pressed, consumed when next key arrives.
     var pendingFind: (forward: Bool, till: Bool)? = nil
 
