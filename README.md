@@ -4,6 +4,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black)
 ![Swift](https://img.shields.io/badge/Swift-6.0-orange)
 ![Release](https://img.shields.io/github/v/release/nkapila6/vimitall)
+![Homebrew](https://img.shields.io/badge/homebrew-tap-yellow)
 
 Vim mode for every macOS text field. Open-source, system-wide.
 
@@ -27,7 +28,15 @@ Or use the build script (builds, resets Accessibility permission, launches):
 ./build.sh
 ```
 
-## Install from release
+## Install
+
+### Homebrew (recommended)
+
+```sh
+brew install --cask nkapila6/tap/vimitall
+```
+
+### Manual
 
 1. Download the latest DMG from [releases](https://github.com/nkapila6/vimitall/releases)
 2. macOS will block it with "Apple could not verify..." - strip the quarantine flag:
