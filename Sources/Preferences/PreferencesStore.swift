@@ -197,18 +197,24 @@ struct AppExceptionsTab: View {
             }
 
             Section("Excluded Apps") {
-                List {
-                    ForEach(Array(blacklist.blacklistedBundleIds).sorted(), id: \.self) { bundleId in
-                        HStack {
-                            Text(displayName(for: bundleId))
-                            Spacer()
-                            Button("Remove") {
-                                blacklist.remove(bundleId)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(blacklist.blacklistedBundleIds).sorted(), id: \.self) { bundleId in
+                            HStack {
+                                Text(displayName(for: bundleId))
+                                    .font(.caption)
+                                Spacer()
+                                Button("Remove") {
+                                    blacklist.remove(bundleId)
+                                }
+                                .buttonStyle(.borderless)
                             }
+                            .padding(.vertical, 2)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: 120)
+                .frame(height: 150)
             }
         }
         .formStyle(.grouped)
@@ -235,13 +241,19 @@ struct AppExceptionsTab: View {
     }
 
     private func appNameForBundleId(_ bundleId: String) -> String? {
-        let appsDir = URL(fileURLWithPath: "/Applications")
-        guard let contents = try? FileManager.default.contentsOfDirectory(at: appsDir, includingPropertiesForKeys: nil) else {
-            return nil
-        }
-        for appURL in contents where appURL.pathExtension == "app" {
-            if let bundle = Bundle(url: appURL), bundle.bundleIdentifier == bundleId {
-                return bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? appURL.deletingPathExtension().lastPathComponent
+        let searchDirs = [
+            URL(fileURLWithPath: "/Applications"),
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
+            URL(fileURLWithPath: "/System/Applications"),
+            URL(fileURLWithPath: "/System/Applications/Utilities"),
+            URL(fileURLWithPath: "/Applications/Utilities"),
+        ]
+        for dir in searchDirs {
+            guard let contents = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
+            for appURL in contents where appURL.pathExtension == "app" {
+                if let bundle = Bundle(url: appURL), bundle.bundleIdentifier == bundleId {
+                    return bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? appURL.deletingPathExtension().lastPathComponent
+                }
             }
         }
         return nil
