@@ -2,8 +2,13 @@ import AppKit
 import CoreGraphics
 import os.log
 
+// CGEvent is a CoreFoundation type designed for cross-thread use
+// (event taps run on background threads). Safe to mark Sendable.
+extension CGEvent: @unchecked Sendable {}
+
 /// Captures global keyDown events via CGEventTap.
-final class GlobalEventMonitor {
+/// @unchecked Sendable: thread safety is handled by dispatching callbacks to main.
+final class GlobalEventMonitor: @unchecked Sendable {
     private let callback: (CGEvent?) -> CGEvent?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -29,7 +34,23 @@ final class GlobalEventMonitor {
             callback: { _, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let monitor = Unmanaged<GlobalEventMonitor>.fromOpaque(refcon).takeUnretainedValue()
-                let result = monitor.callback(event)
+
+                // The event tap runs on the main run loop, so we're usually
+                // already on the main thread. Check to avoid deadlock from
+                // DispatchQueue.main.sync when called from main.
+                if Thread.isMainThread {
+                    let result = monitor.callback(event)
+                    if let result {
+                        return Unmanaged.passUnretained(result)
+                    }
+                    return nil
+                }
+
+                // Fallback for background-thread callbacks: dispatch sync.
+                var result: CGEvent? = event
+                DispatchQueue.main.sync {
+                    result = monitor.callback(event)
+                }
                 if let result {
                     return Unmanaged.passUnretained(result)
                 }
@@ -62,12 +83,15 @@ final class GlobalEventMonitor {
 
     /// Synthesize a key event. Stub for future use (e.g., undo via Cmd+Z).
     func synthesizeKey(keyCode: CGKeyCode, flags: CGEventFlags) {
+        let marker = Int64(KeyboardSynthesizer.synthMarker)
         guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) else { return }
         event.flags = flags
+        event.setIntegerValueField(.eventSourceUserData, value: marker)
         event.post(tap: .cghidEventTap)
         // Key up
         guard let upEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false) else { return }
         upEvent.flags = flags
+        upEvent.setIntegerValueField(.eventSourceUserData, value: marker)
         upEvent.post(tap: .cghidEventTap)
     }
 }

@@ -10,7 +10,7 @@ enum KeySequenceResult {
 struct KeySequence {
     private var buffer: String = ""
     private var lastKeyTime: Date = .distantPast
-    private let timeout: TimeInterval = 1.0
+    private let timeout: TimeInterval = 30.0
 
     mutating func feed(_ key: String) -> KeySequenceResult {
         let now = Date()

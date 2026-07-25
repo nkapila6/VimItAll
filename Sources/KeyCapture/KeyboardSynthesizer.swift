@@ -16,7 +16,7 @@ final class KeyboardSynthesizer {
 
     /// Marker tagged onto synthesized events so our event tap can ignore them.
     /// Prevents a feedback loop where synthesized keys re-enter the tap.
-    static let synthMarker: UInt64 = 0xDEADBEEF
+    nonisolated static let synthMarker: UInt64 = 0xDEADBEEF
 
     // MARK: - Core posting
 
