@@ -4,14 +4,15 @@ set -e
 cd "$(dirname "$0")"
 
 VERSION="${1:-0.1.0}"
-APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/vimitall-apusiqelpkoogidcnhbsxlmcdfuz/Build/Products/Release/vimitall.app"
+DERIVED_DATA_PATH="./build/derived"
+APP_PATH="$DERIVED_DATA_PATH/Build/Products/Release/vimitall.app"
 DMG_DIR="build/dmg"
 DMG_PATH="build/vimitall-${VERSION}.dmg"
 
 echo "==> Building release configuration"
 xcodegen generate
 xcodebuild -project vimitall.xcodeproj -scheme vimitall -configuration Release build \
-	-derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/vimitall-apusiqelpkoogidcnhbsxlmcdfuz" \
+	-derivedDataPath "$DERIVED_DATA_PATH" \
 	2>&1 | grep -E "error:|BUILD"
 
 if [ ! -d "$APP_PATH" ]; then

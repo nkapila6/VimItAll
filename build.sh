@@ -3,7 +3,8 @@ set -e
 
 cd "$(dirname "$0")"
 
-APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/vimitall-apusiqelpkoogidcnhbsxlmcdfuz/Build/Products/Debug/vimitall.app"
+DERIVED_DATA_PATH="./build/derived"
+APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug/vimitall.app"
 BUNDLE_ID="app.vimitall.vimitall"
 
 echo "==> Killing old vimitall"
@@ -15,7 +16,7 @@ xcodegen generate
 
 echo "==> Building"
 xcodebuild -project vimitall.xcodeproj -scheme vimitall -configuration Debug build \
-	-derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/vimitall-apusiqelpkoogidcnhbsxlmcdfuz" \
+	-derivedDataPath "$DERIVED_DATA_PATH" \
 	2>&1 | grep -E "error:|BUILD"
 
 echo "==> Resetting Accessibility permission"
