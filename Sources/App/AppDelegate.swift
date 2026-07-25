@@ -43,6 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return UserDefaults.standard.bool(forKey: "keyboardFallbackEnabled")
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBarController = StatusBarController(vimState: vimState)
 
@@ -92,9 +96,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func frontmostAppChanged() {
         frontmostBundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        cachedAXAvailable = nil  // Invalidate AX cache on focus change.
-        // Avoid leaving the user stuck in Normal mode inside a terminal or editor that already has Vim mode.
-        if blacklist.isBlacklisted(frontmostBundleId ?? "") {
+        cachedAXAvailable = nil
+        let isBlocked = blacklist.isBlacklisted(frontmostBundleId ?? "")
+        os_log("frontmost app changed: %{public}@ blacklisted=%d", log: strategyLog, type: .info, frontmostBundleId ?? "nil", isBlocked ? 1 : 0)
+        if isBlocked {
             vimState.enterInsertMode()
         }
     }
@@ -140,6 +145,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Global enable/disable toggle.
         if !isEnabled { return event }
+
+        // Update frontmost app on each key event as a fallback in case
+        // didActivateApplicationNotification didn't fire.
+        let currentApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        if currentApp != frontmostBundleId {
+            frontmostBundleId = currentApp
+            cachedAXAvailable = nil
+        }
 
         // Pass through everything when the frontmost app is blacklisted.
         if blacklist.isBlacklisted(frontmostBundleId ?? "") {
