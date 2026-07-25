@@ -38,6 +38,7 @@ final class AXMutator {
         guard let element else { return nil }
         guard let rangeValue = element.attribute(kAXSelectedTextRangeAttribute) else { return nil }
         var range = CFRange(location: 0, length: 0)
+        // AXValue is a CF opaque type; force-cast is safe.
         let axValue = rangeValue as! AXValue
         AXValueGetValue(axValue, .cfRange, &range)
         return range.location
@@ -48,6 +49,7 @@ final class AXMutator {
         guard let element else { return nil }
         guard let rangeValue = element.attribute(kAXSelectedTextRangeAttribute) else { return nil }
         var range = CFRange(location: 0, length: 0)
+        // AXValue is a CF opaque type; force-cast is safe.
         let axValue = rangeValue as! AXValue
         AXValueGetValue(axValue, .cfRange, &range)
         return (range.location, range.length)

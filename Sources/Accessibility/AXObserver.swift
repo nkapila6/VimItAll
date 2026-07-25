@@ -3,7 +3,8 @@ import ApplicationServices
 import os.log
 
 /// Wraps the system-wide AXUIElement for focus tracking and text element queries.
-final class AXFocusObserver {
+/// @unchecked Sendable: thread safety is handled by dispatching callbacks to main.
+final class AXFocusObserver: @unchecked Sendable {
     private let systemWide = AXUIElementCreateSystemWide()
     private var observer: AXObserver?
     private var onChange: (() -> Void)?
@@ -15,6 +16,7 @@ final class AXFocusObserver {
         var focused: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused)
         guard result == .success, let element = focused else { return nil }
+        // AXUIElement is a CF opaque type; force-cast is safe.
         let axElement = element as! AXUIElement
         let actualRole = axElement.attribute(kAXRoleAttribute) as? String ?? "nil"
 
@@ -46,7 +48,7 @@ final class AXFocusObserver {
 
         if let rangeValue = axElement.attribute(kAXSelectedTextRangeAttribute) {
             var range = CFRange(location: 0, length: 0)
-            // rangeValue is always an AXValue from the AX API.
+            // AXValue is a CF opaque type; force-cast is safe.
             let axValue = rangeValue as! AXValue
             AXValueGetValue(axValue, .cfRange, &range)
             caretOffset = range.location
@@ -77,7 +79,11 @@ final class AXFocusObserver {
         let callback: AXObserverCallback = { _, element, _, refcon in
             guard let refcon else { return }
             let observer = Unmanaged<AXFocusObserver>.fromOpaque(refcon).takeUnretainedValue()
-            observer.onChange?()
+            // AXObserver callbacks run on the AX event thread, not main.
+            // Dispatch to main since onChange accesses @MainActor state.
+            DispatchQueue.main.async {
+                observer.onChange?()
+            }
         }
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
@@ -96,6 +102,14 @@ final class AXFocusObserver {
             AXObserverGetRunLoopSource(observer),
             .defaultMode
         )
+    }
+
+    deinit {
+        if let observer {
+            AXObserverRemoveNotification(observer, systemWide, kAXFocusedUIElementChangedNotification as CFString)
+            let runLoopSource = AXObserverGetRunLoopSource(observer)
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        }
     }
 }
 
