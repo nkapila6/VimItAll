@@ -50,8 +50,10 @@ final class MotionTests: XCTestCase {
 
     func testDocumentStartAndEnd() {
         let text = "hello\nworld"
+        // gg: first non-blank of first line = 0
         XCTAssertEqual(Motion.documentStart.targetOffset(from: 5, in: text, count: 1), 0)
-        XCTAssertEqual(Motion.documentEnd.targetOffset(from: 0, in: text, count: 1), text.count)
+        // G: first non-blank of last line = 6 (start of "world")
+        XCTAssertEqual(Motion.documentEnd.targetOffset(from: 0, in: text, count: 1), 6)
     }
 
     // MARK: - Multiline motions

@@ -29,7 +29,14 @@ extension Motion {
             return max(0, caret - count)
 
         case .right:
-            return min(text.count, caret + count)
+            // Stop at end of line (before newline). Vim's l does not wrap.
+            var pos = caret
+            for _ in 0..<count {
+                if pos >= text.count { break }
+                if text[text.index(text.startIndex, offsetBy: pos)] == "\n" { break }
+                pos += 1
+            }
+            return pos
 
         case .down:
             let targetLine = min(lines.count - 1, currentLine + count)
@@ -66,10 +73,28 @@ extension Motion {
             return offset(forLine: currentLine, column: lines[currentLine].count, in: lines)
 
         case .documentStart:
-            return 0
+            // Go to first non-blank character of first line (Vim gg behavior).
+            guard let firstLine = lines.first else { return 0 }
+            var col = 0
+            for ch in firstLine {
+                if ch == " " || ch == "\t" { col += 1 }
+                else { break }
+            }
+            return min(col, firstLine.count)
 
         case .documentEnd:
-            return text.count
+            // Go to first non-blank character of last line (Vim G behavior).
+            guard let lastLine = lines.last else { return text.count }
+            var col = 0
+            for ch in lastLine {
+                if ch == " " || ch == "\t" { col += 1 }
+                else { break }
+            }
+            var lineStart = 0
+            for i in 0..<(lines.count - 1) {
+                lineStart += lines[i].count + 1
+            }
+            return lineStart + min(col, lastLine.count)
         }
     }
 }
@@ -77,29 +102,6 @@ extension Motion {
 // MARK: - Helpers
 
 private extension Motion {
-    /// Returns (lineIndex, columnIndex) for a given character offset.
-    func lineAndColumn(for offset: Int, in lines: [String]) -> (Int, Int) {
-        var remaining = offset
-        for (i, line) in lines.enumerated() {
-            if remaining <= line.count {
-                return (i, remaining)
-            }
-            // +1 for the newline character
-            remaining -= line.count + 1
-        }
-        return (lines.count - 1, lines.last?.count ?? 0)
-    }
-
-    /// Returns the character offset for a given line and column.
-    func offset(forLine line: Int, column: Int, in lines: [String]) -> Int {
-        var offset = 0
-        for i in 0..<line {
-            offset += lines[i].count + 1 // +1 for newline
-        }
-        return offset + min(column, lines[line].count)
-    }
-
-    // MARK: Word motion
 
     /// Vim-style word: a word is a sequence of alphanumeric/underscore chars, or a sequence of other non-whitespace chars.
     func isWordChar(_ ch: Character) -> Bool {
