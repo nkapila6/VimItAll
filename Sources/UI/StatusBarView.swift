@@ -241,4 +241,8 @@ final class StatusBarController: NSObject {
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
     }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
